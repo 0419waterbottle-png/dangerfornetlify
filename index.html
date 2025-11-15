@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>위험지대 감지 + 진동 알림</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        background: #0b1020;
+        color: #e8ecf1;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      header {
+        padding: 16px 20px;
+        background: #0d1328;
+        border-bottom: 1px solid #1b254b;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      main {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 20px;
+        padding: 20px;
+        flex: 1;
+        overflow: hidden;
+      }
+      #stage {
+        position: relative;
+        background: #0d1328;
+        border: 1px solid #1b254b;
+        border-radius: 8px;
+        overflow: hidden;
+        width: 100%;
+        aspect-ratio: 4 / 3;
+      }
+      video {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+      }
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .sidebar {
+        background: #0d1328;
+        border: 1px solid #1b254b;
+        border-radius: 8px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        overflow-y: auto;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .row label {
+        min-width: 100px;
+        font-size: 13px;
+        color: #b7c2d7;
+        font-weight: 500;
+      }
+      .row input[type="text"], .row input[type="number"] {
+        flex: 1;
+        background: #0b1020;
+        border: 1px solid #1b254b;
+        color: #e8ecf1;
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+      }
+      .row input[type="text"]:focus, .row input[type="number"]:focus {
+        outline: none;
+        border-color: #3356ff;
+      }
+      button {
+        background: #3356ff;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: background 0.2s;
+      }
+      button:hover {
+        background: #2547e6;
+      }
+      button.secondary {
+        background: #192240;
+        border: 1px solid #2a3a78;
+      }
+      button.secondary:hover {
+        background: #1e2a4f;
+      }
+      .log {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        background: #070a18;
+        border: 1px solid #1b254b;
+        border-radius: 6px;
+        padding: 10px;
+        height: 120px;
+        overflow: auto;
+        font-size: 11px;
+        white-space: pre-wrap;
+        color: #b7c2d7;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #0b1020;
+        border: 1px solid #1b254b;
+        color: #b7c2d7;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .status-indicator {
+        width: 53px;
+        height: 53px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        cursor: move;
+        user-select: none;
+        z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        transition: transform 0.1s;
+      }
+      .status-indicator:hover {
+        transform: scale(1.1);
+      }
+      .status-indicator:active {
+        cursor: grabbing;
+      }
+      .status-indicator.working {
+        background-color: #4caf50;
+      }
+      .status-indicator.working::after {
+        content: '✓';
+        color: white;
+        font-size: 26px;
+        font-weight: bold;
+        line-height: 1;
+      }
+      .status-indicator.error {
+        background-color: #ff9800;
+      }
+      .status-indicator.error::after {
+        content: '⚠';
+        color: white;
+        font-size: 26px;
+        font-weight: bold;
+        line-height: 1;
+      }
+      .model-status {
+        background: #0b1020;
+        border: 1px solid #1b254b;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 12px;
+        margin-top: 0;
+      }
+      .model-status-title {
+        color: #e8ecf1;
+        margin-bottom: 12px;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .prediction-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #1b254b;
+      }
+      .prediction-item:last-child {
+        border-bottom: none;
+      }
+      .prediction-label {
+        color: #e8ecf1;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .prediction-value {
+        color: #b7c2d7;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .vibration-notice {
+        background: #1a2332;
+        border: 1px solid #2a3a78;
+        border-radius: 6px;
+        padding: 12px;
+        font-size: 12px;
+        color: #b7c2d7;
+        text-align: center;
+        line-height: 1.6;
+        margin-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>위험지대 감지 + 진동 알림</h1>
+    </header>
+    <main class="container">
+      <section id="stage">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+      </section>
+      <aside class="sidebar">
+        <div class="row">
+          <label>감지 임계치</label>
+          <input id="threshold" type="number" min="0" max="1" step="0.01" value="0.85" />
+        </div>
+        <div class="row">
+          <label>확정 프레임</label>
+          <input id="steadyFrames" type="number" min="1" max="30" step="1" value="4" />
+        </div>
+        <div class="row">
+          <button id="btnCamera">📷 카메라 시작</button>
+        </div>
+        <div class="row">
+          <button id="btnStart">▶️ 감지 시작</button>
+          <button id="btnStop" class="secondary">⏹️ 정지</button>
+        </div>
+        <div class="vibration-notice">
+          기기가 무음 상태라면 진동으로 바꿔주시기 바랍니다
+        </div>
+        <div>
+          <div class="badge" id="status">
+            <span id="statusText">초기화 중...</span>
+          </div>
+        </div>
+        <div class="model-status" id="modelStatus">
+          <div class="model-status-title">📊 실시간 예측 결과</div>
+          <div id="modelStatusContent">
+            <div class="prediction-item">
+              <span class="prediction-label">계단</span>
+              <span class="prediction-value">0%</span>
+            </div>
+            <div class="prediction-item">
+              <span class="prediction-label">횡단보도</span>
+              <span class="prediction-value">0%</span>
+            </div>
+            <div class="prediction-item">
+              <span class="prediction-label">기둥</span>
+              <span class="prediction-value">0%</span>
+            </div>
+          </div>
+        </div>
+        <div class="log" id="log"></div>
+      </aside>
+    </main>
+    <!-- 드래그 가능한 원형 상태 표시 -->
+    <div class="status-indicator error" id="statusIndicator"></div>
+
+    <!-- TensorFlow.js from unpkg -->
+    <script src="https://unpkg.com/@tensorflow/tfjs@4.2.0/dist/tf.min.js"></script>
+    <!-- Teachable Machine from unpkg -->
+    <script src="https://unpkg.com/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+    <!-- Main Script -->
+    <script src="main.js"></script>
+  </body>
+  </html>
+
+
+
