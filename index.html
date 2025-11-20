@@ -30,7 +30,7 @@
         font-size: 18px;
       }
       .vibration-notice {
-        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+        background: #ff6b6b;
         border: 2px solid #ff4757;
         border-radius: 8px;
         padding: 12px;
@@ -39,47 +39,66 @@
         font-weight: bold;
         font-size: 15pt;
         text-align: center;
-        box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
-        animation: pulse 2s ease-in-out infinite;
+        white-space: pre-line;
       }
       .model-status {
         background: #0b1020;
         border: 1px solid #1b254b;
         border-radius: 6px;
-        padding: 8px;
-        height: 180px;
+        padding: 12px;
+        height: 300px;
         overflow: auto;
         font-size: 12px;
       }
       .model-status-title {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: bold;
-        color: #b7c2d7;
-        margin-bottom: 8px;
+        color: #e8ecf1;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .model-status-title::before {
+        content: '📊';
+        font-size: 16px;
       }
       .prediction-item {
+        margin-bottom: 12px;
+      }
+      .prediction-row {
         display: flex;
         justify-content: space-between;
-        padding: 4px 0;
-        border-bottom: 1px solid #1b254b;
-      }
-      .prediction-item:last-child {
-        border-bottom: none;
+        align-items: center;
+        margin-bottom: 4px;
       }
       .prediction-label {
         color: #e8ecf1;
+        font-size: 13px;
       }
       .prediction-value {
-        color: #3356ff;
+        color: #b7c2d7;
+        font-size: 13px;
         font-weight: bold;
       }
-      @keyframes pulse {
-        0%, 100% {
-          box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
-        }
-        50% {
-          box-shadow: 0 4px 20px rgba(255, 71, 87, 0.6);
-        }
+      .prediction-bar-container {
+        width: 100%;
+        height: 20px;
+        background: #1b254b;
+        border-radius: 10px;
+        overflow: hidden;
+        position: relative;
+      }
+      .prediction-bar {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.3s ease;
+      }
+      .prediction-bar.safe {
+        background: #4caf50;
+      }
+      .prediction-bar.danger {
+        background: #3356ff;
       }
       main {
         display: grid;
@@ -139,17 +158,6 @@
         background: #192240;
         border: 1px solid #2a3a78;
       }
-      .log {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        background: #070a18;
-        border: 1px solid #1b254b;
-        border-radius: 6px;
-        padding: 8px;
-        height: 120px;
-        overflow: auto;
-        font-size: 12px;
-        white-space: pre-wrap;
-      }
       .badge {
         display: inline-flex;
         align-items: center;
@@ -170,6 +178,12 @@
         z-index: 1000;
         border: 3px solid rgba(255, 255, 255, 0.3);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
       }
       .status-indicator.safe {
         background-color: #4caf50;
@@ -212,13 +226,14 @@
           <button id="btnStop" class="secondary">⏹️ 정지</button>
         </div>
         <div class="vibration-notice">
-          ⚠️ 기기가 무음 상태라면 진동으로 바꿔주시기 바랍니다 ⚠️
+⚠️ 기기가 무음 상태라면 ⚠️
+
+  진동으로 바꿔주시기 바랍니다
         </div>
-        <div class="model-status" id="modelStatus" style="display: none;">
+        <div class="model-status" id="modelStatus">
           <div class="model-status-title">실시간 예측 결과</div>
           <div id="modelStatusContent"></div>
         </div>
-        <div class="log" id="log"></div>
       </aside>
     </main>
 

@@ -19,7 +19,6 @@ const ui = {
   statusText: document.getElementById('statusText'),
   modelStatus: document.getElementById('modelStatus'),
   modelStatusContent: document.getElementById('modelStatusContent'),
-  log: document.getElementById('log'),
 };
 
 let DANGER_LABELS = []; // 위험 라벨들 (labels.txt에서 자동 로드)
@@ -37,9 +36,8 @@ let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
 
 const log = (msg) => {
-  const t = new Date().toLocaleTimeString();
-  ui.log.textContent += `[${t}] ${msg}\n`;
-  ui.log.scrollTop = ui.log.scrollHeight;
+  // 로그 출력 제거됨
+  console.log(msg);
 };
 
 function setStatus(text, isDetecting = false) {
@@ -47,23 +45,33 @@ function setStatus(text, isDetecting = false) {
 }
 
 // 원형 표시 상태 업데이트
-function updateStatusIndicator(modelWorking, dangerDetected) {
+function updateStatusIndicator(modelWorking, dangerDetected, isDetecting = false) {
   if (!ui.statusIndicator) return;
   
-  // 모델이 정상 작동하지 않을 때: 노란색
+  // 모델이 정상 작동하지 않을 때: 노란색 + 세모표시
   if (!modelWorking) {
     ui.statusIndicator.className = 'status-indicator warning';
+    ui.statusIndicator.textContent = '▲';
     return;
   }
   
-  // 모델이 정상 작동하고 위험지대 인식할 때: 빨간색
-  if (dangerDetected) {
+  // 감지 중이고 위험지대 인식할 때: 빨간색 + 세모표시
+  if (isDetecting && dangerDetected) {
     ui.statusIndicator.className = 'status-indicator danger';
+    ui.statusIndicator.textContent = '▲';
     return;
   }
   
-  // 모델이 정상 작동하고 위험지대 미인식: 초록색
+  // 감지 중이고 안전할 때: 초록색 + V표시
+  if (isDetecting && !dangerDetected) {
+    ui.statusIndicator.className = 'status-indicator safe';
+    ui.statusIndicator.textContent = '✓';
+    return;
+  }
+  
+  // 감지 중이 아닐 때: 초록색 (표시 없음)
   ui.statusIndicator.className = 'status-indicator safe';
+  ui.statusIndicator.textContent = '';
 }
 
 // 모델 작동 현황 업데이트
@@ -74,21 +82,52 @@ function updateModelStatus(predictions, best, confirmed) {
     // 기존 내용 제거
     ui.modelStatusContent.innerHTML = '';
     
+    // 평지 라벨 확인 (안전으로 표시)
+    const GROUND_LABELS = ['평지', 'ground', '평면', '바닥', '안전'];
+    
     // 각 예측 결과를 항목으로 표시
     predictions.forEach((p, i) => {
       const item = document.createElement('div');
       item.className = 'prediction-item';
       
+      // 라벨과 퍼센트 행
+      const row = document.createElement('div');
+      row.className = 'prediction-row';
+      
       const label = document.createElement('span');
       label.className = 'prediction-label';
-      label.textContent = p.className;
+      // 평지인 경우 "(안전)" 추가
+      const isSafe = GROUND_LABELS.some(groundLabel => 
+        p.className.toLowerCase().includes(groundLabel.toLowerCase())
+      );
+      label.textContent = isSafe ? `${p.className} (안전)` : p.className;
       
       const value = document.createElement('span');
       value.className = 'prediction-value';
-      value.textContent = (p.probability * 100).toFixed(0) + '%';
+      value.textContent = (p.probability * 100).toFixed(1) + '%';
       
-      item.appendChild(label);
-      item.appendChild(value);
+      row.appendChild(label);
+      row.appendChild(value);
+      
+      // 바 차트 컨테이너
+      const barContainer = document.createElement('div');
+      barContainer.className = 'prediction-bar-container';
+      
+      const bar = document.createElement('div');
+      bar.className = 'prediction-bar';
+      bar.style.width = (p.probability * 100) + '%';
+      
+      // 평지(안전)는 초록색, 나머지는 파란색
+      if (isSafe) {
+        bar.classList.add('safe');
+      } else {
+        bar.classList.add('danger');
+      }
+      
+      barContainer.appendChild(bar);
+      
+      item.appendChild(row);
+      item.appendChild(barContainer);
       ui.modelStatusContent.appendChild(item);
     });
   }
@@ -410,7 +449,7 @@ async function inferenceLoop() {
       // 원형 표시 업데이트
       // 모델 정상 작동 + 위험지대 인식 여부 확인
       const hasDanger = confirmed || shouldVibrate90 || (best.label && best.prob >= threshold);
-      updateStatusIndicator(true, hasDanger);
+      updateStatusIndicator(true, hasDanger, true); // 감지 중이므로 isDetecting = true
       
       setStatus('감지 중...', true);
     } catch (e) {
@@ -430,7 +469,7 @@ function stopLoop() {
   stopVibrationPattern();
   stopVibration();
   setStatus('정지됨', false);
-  if (ui.modelStatus) ui.modelStatus.style.display = 'none';
+  // 정지 시에도 모델 상태는 계속 표시
   if (animationHandle) cancelAnimationFrame(animationHandle);
   // 정지 시 모델이 있으면 초록색, 없으면 노란색
   updateStatusIndicator(model !== null, false);
