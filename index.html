@@ -33,13 +33,14 @@
         background: #ff6b6b;
         border: 2px solid #ff4757;
         border-radius: 8px;
-        padding: 9.6px;
+        padding: 8px 9.6px;
         margin-bottom: 12px;
         color: #ffffff;
         font-weight: bold;
         font-size: 15pt;
         text-align: center;
         white-space: pre-line;
+        line-height: 1.3;
       }
       .model-status {
         background: #0b1020;
@@ -139,6 +140,20 @@
         flex-direction: column;
         gap: 12px;
       }
+      .camera-preview {
+        width: 100%;
+        aspect-ratio: 4 / 3;
+        background: #0b1020;
+        border: 1px solid #1b254b;
+        border-radius: 6px;
+        overflow: hidden;
+        position: relative;
+      }
+      .camera-preview video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
       .row {
         display: flex;
         align-items: center;
@@ -221,6 +236,9 @@
         <div id="statusIndicator" class="status-indicator safe"></div>
       </section>
       <aside class="sidebar">
+        <div class="camera-preview">
+          <video id="videoPreview" autoplay playsinline muted></video>
+        </div>
         <div class="row">
           <label>감지 임계치</label>
           <input id="threshold" type="number" min="0" max="1" step="0.01" value="0.85" />

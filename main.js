@@ -8,6 +8,7 @@
 
 const ui = {
   video: document.getElementById('video'),
+  videoPreview: document.getElementById('videoPreview'),
   overlay: document.getElementById('overlay'),
   btnCamera: document.getElementById('btnCamera'),
   btnStart: document.getElementById('btnStart'),
@@ -45,11 +46,11 @@ function setStatus(text, isDetecting = false) {
 }
 
 // 원형 표시 상태 업데이트
-function updateStatusIndicator(modelWorking, dangerDetected, isDetecting = false) {
+function updateStatusIndicator(modelWorking, dangerDetected, isDetecting = false, cameraWorking = true) {
   if (!ui.statusIndicator) return;
   
-  // 카메라나 모델이 작동하지 않을 때: 노란색 경고
-  if (!modelWorking) {
+  // 카메라와 모델 중 하나 이상이 작동하지 않을 때: 노란색 경고
+  if (!modelWorking || !cameraWorking) {
     ui.statusIndicator.className = 'status-indicator warning';
     ui.statusIndicator.textContent = '⚠';
     return;
@@ -62,16 +63,9 @@ function updateStatusIndicator(modelWorking, dangerDetected, isDetecting = false
     return;
   }
   
-  // 모델이 정상 작동하고 안전할 때: 초록색 바탕에 V표시
-  if (isDetecting && !dangerDetected) {
-    ui.statusIndicator.className = 'status-indicator safe';
-    ui.statusIndicator.textContent = '✓';
-    return;
-  }
-  
-  // 감지 중이 아닐 때: 초록색 (표시 없음)
+  // 빨간색과 노란색에 해당하지 않을 때: 초록색 바탕의 V표시
   ui.statusIndicator.className = 'status-indicator safe';
-  ui.statusIndicator.textContent = '';
+  ui.statusIndicator.textContent = '✓';
 }
 
 // 모델 작동 현황 업데이트
@@ -225,10 +219,13 @@ async function openCamera() {
     webcamStream.getTracks().forEach(track => track.stop());
     webcamStream = null;
     ui.video.srcObject = null;
+    if (ui.videoPreview) {
+      ui.videoPreview.srcObject = null;
+    }
     log('카메라 종료됨');
     setStatus('카메라 종료', false);
     // 카메라 종료 시 모델 상태에 따라 표시
-    updateStatusIndicator(model !== null, false);
+    updateStatusIndicator(model !== null, false, false, false);
     return;
   }
   try {
@@ -241,7 +238,13 @@ async function openCamera() {
       audio: false 
     });
     ui.video.srcObject = webcamStream;
+    if (ui.videoPreview) {
+      ui.videoPreview.srcObject = webcamStream;
+    }
     await ui.video.play();
+    if (ui.videoPreview) {
+      await ui.videoPreview.play();
+    }
     
     // 비디오 크기에 맞춰 overlay 크기 조정
     ui.video.addEventListener('loadedmetadata', () => {
@@ -251,13 +254,13 @@ async function openCamera() {
     
     log('카메라 시작됨 - 정면 화면 송출 중');
     setStatus('카메라 작동 중', false);
-    // 카메라 시작 시 모델 상태에 따라 표시 (모델이 있으면 초록색, 없으면 노란색)
-    updateStatusIndicator(model !== null, false);
+    // 카메라 시작 시 모델 상태에 따라 표시
+    updateStatusIndicator(model !== null, false, false, true);
   } catch (e) {
     log(`카메라 오류: ${e.message}`);
     setStatus('카메라 오류', false);
     // 카메라 오류 시 노란색
-    updateStatusIndicator(false, false);
+    updateStatusIndicator(model !== null, false, false, false);
   }
 }
 
@@ -279,14 +282,14 @@ async function loadModel() {
     log(`라벨: ${DANGER_LABELS.join(', ')}`);
     setStatus('모델 준비 완료', false);
     // 모델 로드 성공 시 초록색 (위험 미인식 상태)
-    updateStatusIndicator(true, false);
+    updateStatusIndicator(true, false, false, webcamStream !== null);
   } catch (e) {
     log(`✗ 모델 로드 실패: ${e.message}`);
     log('Teachable Machine에서 웹용 모델을 다운로드해주세요.');
     log('(Export Model → TensorFlow.js 선택)');
     setStatus('모델 로드 실패', false);
     // 모델 로드 실패 시 노란색
-    updateStatusIndicator(false, false);
+    updateStatusIndicator(false, false, false, webcamStream !== null);
   }
 }
 
@@ -420,7 +423,7 @@ async function inferenceLoop() {
     log('모델 또는 카메라가 준비되지 않았습니다.');
     setStatus('준비되지 않음', false);
     // 모델 또는 카메라 미준비 시 노란색
-    updateStatusIndicator(false, false);
+    updateStatusIndicator(model !== null, false, false, webcamStream !== null);
     return;
   }
   isRunning = true;
@@ -480,7 +483,7 @@ async function inferenceLoop() {
       // 원형 표시 업데이트
       // 모델 정상 작동 + 위험지대 인식 여부 확인
       const hasDanger = confirmed || shouldVibrate90 || (best.label && best.prob >= threshold);
-      updateStatusIndicator(true, hasDanger, true); // 감지 중이므로 isDetecting = true
+      updateStatusIndicator(true, hasDanger, true, true); // 감지 중이므로 isDetecting = true, 카메라 작동 중
       
       setStatus('감지 중...', true);
     } catch (e) {
@@ -488,7 +491,7 @@ async function inferenceLoop() {
       setStatus('감지 오류', false);
       updateModelStatus(null, null, false);
       // 모델 오류 시 노란색 표시
-      updateStatusIndicator(false, false);
+      updateStatusIndicator(false, false, false, webcamStream !== null);
     }
     animationHandle = requestAnimationFrame(step);
   };
@@ -502,8 +505,8 @@ function stopLoop() {
   setStatus('정지됨', false);
   // 정지 시에도 모델 상태는 계속 표시
   if (animationHandle) cancelAnimationFrame(animationHandle);
-  // 정지 시 모델이 있으면 초록색, 없으면 노란색
-  updateStatusIndicator(model !== null, false);
+  // 정지 시 모델과 카메라 상태에 따라 표시
+  updateStatusIndicator(model !== null, false, false, webcamStream !== null);
 }
 
 ui.btnCamera.addEventListener('click', openCamera);
@@ -581,15 +584,15 @@ function checkLibraryAndInit() {
   
   log('앱 시작됨');
   setStatus('초기화 중...', false);
-  // 초기 상태: 노란색 (모델 미로드)
-  updateStatusIndicator(false, false);
+  // 초기 상태: 노란색 (모델 미로드, 카메라 미작동)
+  updateStatusIndicator(false, false, false, false);
   
   // TensorFlow.js 확인
   if (typeof tf === 'undefined') {
     log('✗ TensorFlow.js 로드 실패');
     console.error('TensorFlow.js가 로드되지 않았습니다.');
     setStatus('TF.js 로드 실패', false);
-    updateStatusIndicator(false, false);
+    updateStatusIndicator(false, false, false, webcamStream !== null);
     return;
   }
   
@@ -600,7 +603,7 @@ function checkLibraryAndInit() {
     log('✗ Teachable Machine 라이브러리 로드 실패');
     console.error('Teachable Machine 라이브러리가 로드되지 않았습니다.');
     setStatus('tmImage 로드 실패', false);
-    updateStatusIndicator(false, false);
+    updateStatusIndicator(false, false, false, webcamStream !== null);
     return;
   }
   
