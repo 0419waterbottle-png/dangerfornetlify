@@ -33,7 +33,7 @@
         background: #ff6b6b;
         border: 2px solid #ff4757;
         border-radius: 8px;
-        padding: 12px;
+        padding: 9.6px;
         margin-bottom: 12px;
         color: #ffffff;
         font-weight: bold;
@@ -113,6 +113,17 @@
         border-radius: 8px;
         overflow: hidden;
         min-height: 400px;
+      }
+      .danger-flash {
+        animation: dangerFlash 0.5s ease-in-out infinite;
+      }
+      @keyframes dangerFlash {
+        0%, 100% {
+          opacity: 0.3;
+        }
+        50% {
+          opacity: 0.6;
+        }
       }
       video, canvas {
         width: 100%;

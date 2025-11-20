@@ -48,21 +48,21 @@ function setStatus(text, isDetecting = false) {
 function updateStatusIndicator(modelWorking, dangerDetected, isDetecting = false) {
   if (!ui.statusIndicator) return;
   
-  // 모델이 정상 작동하지 않을 때: 노란색 + 세모표시
+  // 카메라나 모델이 작동하지 않을 때: 노란색 경고
   if (!modelWorking) {
     ui.statusIndicator.className = 'status-indicator warning';
-    ui.statusIndicator.textContent = '▲';
+    ui.statusIndicator.textContent = '⚠';
     return;
   }
   
-  // 감지 중이고 위험지대 인식할 때: 빨간색 + 세모표시
+  // 모델이 위험지대 분류할 때: 빨간색 바탕에 경고표시(일반 경고 이모지)
   if (isDetecting && dangerDetected) {
     ui.statusIndicator.className = 'status-indicator danger';
-    ui.statusIndicator.textContent = '▲';
+    ui.statusIndicator.textContent = '⚠️';
     return;
   }
   
-  // 감지 중이고 안전할 때: 초록색 + V표시
+  // 모델이 정상 작동하고 안전할 때: 초록색 바탕에 V표시
   if (isDetecting && !dangerDetected) {
     ui.statusIndicator.className = 'status-indicator safe';
     ui.statusIndicator.textContent = '✓';
@@ -85,8 +85,30 @@ function updateModelStatus(predictions, best, confirmed) {
     // 평지 라벨 확인 (안전으로 표시)
     const GROUND_LABELS = ['평지', 'ground', '평면', '바닥', '안전'];
     
-    // 각 예측 결과를 항목으로 표시
-    predictions.forEach((p, i) => {
+    // 고정된 순서로 표시 (모델의 라벨 순서 유지)
+    // predictions 배열의 순서를 유지하되, DANGER_LABELS 순서에 맞춰 정렬
+    let orderedPredictions = [];
+    if (DANGER_LABELS && DANGER_LABELS.length > 0) {
+      // DANGER_LABELS 순서대로 predictions에서 찾아서 추가
+      DANGER_LABELS.forEach(label => {
+        const found = predictions.find(p => p.className === label);
+        if (found) {
+          orderedPredictions.push(found);
+        }
+      });
+      // DANGER_LABELS에 없는 예측 결과도 추가
+      predictions.forEach(p => {
+        if (!DANGER_LABELS.includes(p.className)) {
+          orderedPredictions.push(p);
+        }
+      });
+    } else {
+      // DANGER_LABELS가 없으면 원래 순서 유지
+      orderedPredictions = predictions;
+    }
+    
+    // 각 예측 결과를 항목으로 표시 (고정된 순서)
+    orderedPredictions.forEach((p, i) => {
       const item = document.createElement('div');
       item.className = 'prediction-item';
       
@@ -418,19 +440,28 @@ async function inferenceLoop() {
 
       const confirmed = updateHysteresis(best.label, requiredSeconds);
 
-      // Draw overlay
+      // 진동 제어를 위한 위험 감지 확인
+      const shouldVibrate90 = shouldVibrateForNonGround(predictions);
+
+      // Draw overlay - 위험지대 감지 시 빨간색 깜빡임만
       ctx.clearRect(0, 0, ui.overlay.width, ui.overlay.height);
-      if (best.label) {
-        ctx.fillStyle = 'rgba(255, 87, 34, 0.25)';
+      
+      // 위험지대 감지 여부 확인
+      const hasDangerForFlash = confirmed || shouldVibrate90 || (best.label && best.prob >= threshold);
+      const GROUND_LABELS = ['평지', 'ground', '평면', '바닥', '안전'];
+      const isBestSafe = best.label && GROUND_LABELS.some(groundLabel => 
+        best.label.toLowerCase().includes(groundLabel.toLowerCase())
+      );
+      
+      // 위험지대 감지 시 화면 전체 빨간색 깜빡이는 효과
+      if (hasDangerForFlash && !isBestSafe) {
+        const flashIntensity = 0.3 + Math.sin(Date.now() / 200) * 0.3;
+        ctx.fillStyle = `rgba(255, 0, 0, ${flashIntensity})`;
         ctx.fillRect(0, 0, ui.overlay.width, ui.overlay.height);
-        ctx.fillStyle = '#ffb199';
-        ctx.font = '18px ui-monospace, monospace';
-        ctx.fillText(`${best.label} ${(best.prob * 100).toFixed(1)}%`, 12, 28);
       }
 
       // 진동 제어
       // 1. 평지를 제외한 클래스에서 90% 이상 확률인 경우: 1초씩 진동
-      const shouldVibrate90 = shouldVibrateForNonGround(predictions);
       if (shouldVibrate90) {
         startVibrationPattern();
       } else {
