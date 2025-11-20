@@ -505,7 +505,10 @@ function stopLoop() {
   setStatus('정지됨', false);
   // 정지 시에도 모델 상태는 계속 표시
   if (animationHandle) cancelAnimationFrame(animationHandle);
-  // 정지 시 모델과 카메라 상태에 따라 표시
+  // overlay 초기화
+  const ctx = ui.overlay.getContext('2d');
+  ctx.clearRect(0, 0, ui.overlay.width, ui.overlay.height);
+  // 정지 시 모델과 카메라 상태에 따라 표시 (감지 중이 아니므로 초록색 V표시)
   updateStatusIndicator(model !== null, false, false, webcamStream !== null);
 }
 
