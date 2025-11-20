@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>위험지대 감지 + 진동 알림</title>
+    <title>'스몸비'를 위한 스마트폰 위험 감지 시스템</title>
     <style>
       html, body {
         margin: 0;
@@ -14,27 +14,78 @@
         color: #e8ecf1;
       }
       .container {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 16px;
+        height: 100%;
       }
       header {
-        padding: 16px 20px;
+        grid-column: 1 / -1;
+        padding: 12px 16px;
         background: #0d1328;
         border-bottom: 1px solid #1b254b;
       }
       header h1 {
         margin: 0;
-        font-size: 20px;
-        font-weight: 600;
+        font-size: 18px;
+      }
+      .vibration-notice {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+        border: 2px solid #ff4757;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        color: #ffffff;
+        font-weight: bold;
+        font-size: 15pt;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
+        animation: pulse 2s ease-in-out infinite;
+      }
+      .model-status {
+        background: #0b1020;
+        border: 1px solid #1b254b;
+        border-radius: 6px;
+        padding: 8px;
+        height: 180px;
+        overflow: auto;
+        font-size: 12px;
+      }
+      .model-status-title {
+        font-size: 13px;
+        font-weight: bold;
+        color: #b7c2d7;
+        margin-bottom: 8px;
+      }
+      .prediction-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+        border-bottom: 1px solid #1b254b;
+      }
+      .prediction-item:last-child {
+        border-bottom: none;
+      }
+      .prediction-label {
+        color: #e8ecf1;
+      }
+      .prediction-value {
+        color: #3356ff;
+        font-weight: bold;
+      }
+      @keyframes pulse {
+        0%, 100% {
+          box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
+        }
+        50% {
+          box-shadow: 0 4px 20px rgba(255, 71, 87, 0.6);
+        }
       }
       main {
         display: grid;
-        grid-template-columns: 1fr 320px;
-        gap: 20px;
-        padding: 20px;
-        flex: 1;
-        overflow: hidden;
+        grid-template-columns: 1fr 360px;
+        gap: 16px;
+        padding: 16px;
       }
       #stage {
         position: relative;
@@ -42,89 +93,62 @@
         border: 1px solid #1b254b;
         border-radius: 8px;
         overflow: hidden;
-        width: 100%;
-        aspect-ratio: 4 / 3;
+        min-height: 400px;
       }
-      video {
+      video, canvas {
         width: 100%;
-        height: 100%;
+        height: auto;
         display: block;
-        object-fit: cover;
-      }
-      canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
       }
       .sidebar {
         background: #0d1328;
         border: 1px solid #1b254b;
         border-radius: 8px;
-        padding: 16px;
+        padding: 12px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
-        overflow-y: auto;
+        gap: 12px;
       }
       .row {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
       }
       .row label {
-        min-width: 100px;
+        min-width: 120px;
         font-size: 13px;
         color: #b7c2d7;
-        font-weight: 500;
       }
       .row input[type="text"], .row input[type="number"] {
         flex: 1;
         background: #0b1020;
         border: 1px solid #1b254b;
         color: #e8ecf1;
-        padding: 8px 10px;
+        padding: 6px 8px;
         border-radius: 6px;
-        font-size: 13px;
-      }
-      .row input[type="text"]:focus, .row input[type="number"]:focus {
-        outline: none;
-        border-color: #3356ff;
       }
       button {
         background: #3356ff;
         color: white;
         border: none;
-        padding: 10px 16px;
+        padding: 8px 12px;
         border-radius: 6px;
         cursor: pointer;
-        font-size: 13px;
-        font-weight: 500;
-        transition: background 0.2s;
-      }
-      button:hover {
-        background: #2547e6;
       }
       button.secondary {
         background: #192240;
         border: 1px solid #2a3a78;
-      }
-      button.secondary:hover {
-        background: #1e2a4f;
       }
       .log {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
         background: #070a18;
         border: 1px solid #1b254b;
         border-radius: 6px;
-        padding: 10px;
+        padding: 8px;
         height: 120px;
         overflow: auto;
-        font-size: 11px;
+        font-size: 12px;
         white-space: pre-wrap;
-        color: #b7c2d7;
       }
       .badge {
         display: inline-flex;
@@ -133,107 +157,43 @@
         background: #0b1020;
         border: 1px solid #1b254b;
         color: #b7c2d7;
-        padding: 6px 12px;
+        padding: 4px 8px;
         border-radius: 999px;
         font-size: 12px;
-        font-weight: 500;
       }
       .status-indicator {
-        width: 53px;
-        height: 53px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         position: fixed;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
         cursor: move;
-        user-select: none;
         z-index: 1000;
+        border: 3px solid rgba(255, 255, 255, 0.3);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        transition: transform 0.1s;
       }
-      .status-indicator:hover {
-        transform: scale(1.1);
-      }
-      .status-indicator:active {
-        cursor: grabbing;
-      }
-      .status-indicator.working {
+      .status-indicator.safe {
         background-color: #4caf50;
+        border-color: #66bb6a;
       }
-      .status-indicator.working::after {
-        content: '✓';
-        color: white;
-        font-size: 26px;
-        font-weight: bold;
-        line-height: 1;
+      .status-indicator.warning {
+        background-color: #ffc107;
+        border-color: #ffd54f;
       }
-      .status-indicator.error {
-        background-color: #ff9800;
-      }
-      .status-indicator.error::after {
-        content: '⚠';
-        color: white;
-        font-size: 26px;
-        font-weight: bold;
-        line-height: 1;
-      }
-      .model-status {
-        background: #0b1020;
-        border: 1px solid #1b254b;
-        border-radius: 8px;
-        padding: 12px;
-        font-size: 12px;
-        margin-top: 0;
-      }
-      .model-status-title {
-        color: #e8ecf1;
-        margin-bottom: 12px;
-        font-weight: 600;
-        font-size: 14px;
-      }
-      .prediction-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 0;
-        border-bottom: 1px solid #1b254b;
-      }
-      .prediction-item:last-child {
-        border-bottom: none;
-      }
-      .prediction-label {
-        color: #e8ecf1;
-        font-size: 13px;
-        font-weight: 500;
-      }
-      .prediction-value {
-        color: #b7c2d7;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        font-size: 13px;
-        font-weight: 600;
-      }
-      .vibration-notice {
-        background: #1a2332;
-        border: 1px solid #2a3a78;
-        border-radius: 6px;
-        padding: 12px;
-        font-size: 12px;
-        color: #b7c2d7;
-        text-align: center;
-        line-height: 1.6;
-        margin-top: 0;
+      .status-indicator.danger {
+        background-color: #f44336;
+        border-color: #ef5350;
       }
     </style>
   </head>
   <body>
     <header>
-      <h1>위험지대 감지 + 진동 알림</h1>
+      <h1>'스몸비'를 위한 스마트폰 위험 감지 시스템</h1>
     </header>
     <main class="container">
       <section id="stage">
         <video id="video" autoplay playsinline muted></video>
         <canvas id="overlay"></canvas>
+        <div id="statusIndicator" class="status-indicator safe"></div>
       </section>
       <aside class="sidebar">
         <div class="row">
@@ -241,8 +201,8 @@
           <input id="threshold" type="number" min="0" max="1" step="0.01" value="0.85" />
         </div>
         <div class="row">
-          <label>확정 프레임</label>
-          <input id="steadyFrames" type="number" min="1" max="30" step="1" value="4" />
+          <label>확정 시간(초)</label>
+          <input id="steadyFrames" type="number" min="0.1" max="10" step="0.1" value="1.5" />
         </div>
         <div class="row">
           <button id="btnCamera">📷 카메라 시작</button>
@@ -252,35 +212,15 @@
           <button id="btnStop" class="secondary">⏹️ 정지</button>
         </div>
         <div class="vibration-notice">
-          기기가 무음 상태라면 진동으로 바꿔주시기 바랍니다
+          ⚠️ 기기가 무음 상태라면 진동으로 바꿔주시기 바랍니다 ⚠️
         </div>
-        <div>
-          <div class="badge" id="status">
-            <span id="statusText">초기화 중...</span>
-          </div>
-        </div>
-        <div class="model-status" id="modelStatus">
-          <div class="model-status-title">📊 실시간 예측 결과</div>
-          <div id="modelStatusContent">
-            <div class="prediction-item">
-              <span class="prediction-label">계단</span>
-              <span class="prediction-value">0%</span>
-            </div>
-            <div class="prediction-item">
-              <span class="prediction-label">횡단보도</span>
-              <span class="prediction-value">0%</span>
-            </div>
-            <div class="prediction-item">
-              <span class="prediction-label">기둥</span>
-              <span class="prediction-value">0%</span>
-            </div>
-          </div>
+        <div class="model-status" id="modelStatus" style="display: none;">
+          <div class="model-status-title">실시간 예측 결과</div>
+          <div id="modelStatusContent"></div>
         </div>
         <div class="log" id="log"></div>
       </aside>
     </main>
-    <!-- 드래그 가능한 원형 상태 표시 -->
-    <div class="status-indicator error" id="statusIndicator"></div>
 
     <!-- TensorFlow.js from unpkg -->
     <script src="https://unpkg.com/@tensorflow/tfjs@4.2.0/dist/tf.min.js"></script>
