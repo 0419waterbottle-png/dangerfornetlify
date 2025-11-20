@@ -49,22 +49,22 @@ function setStatus(text, isDetecting = false) {
 function updateStatusIndicator(modelWorking, dangerDetected, isDetecting = false, cameraWorking = true) {
   if (!ui.statusIndicator) return;
   
-  // 모델과 카메라가 모두 작동할 때만 빨간색/초록색 표시
-  if (modelWorking && cameraWorking) {
-    // 모델과 카메라가 모두 작동할 때 위험지대 분류되면: 빨간색
-    if (isDetecting && dangerDetected) {
+  // 모델과 카메라가 모두 작동하고, 감지 중일 때만 빨간색/초록색 표시
+  if (modelWorking && cameraWorking && isDetecting) {
+    // 모델과 카메라가 모두 작동하고 감지 중일 때 위험지대 분류되면: 빨간색
+    if (dangerDetected) {
       ui.statusIndicator.className = 'status-indicator danger';
       ui.statusIndicator.textContent = '⚠️';
       return;
     }
     
-    // 모델과 카메라가 모두 작동할 때 안전하면: 초록색
+    // 모델과 카메라가 모두 작동하고 감지 중일 때 안전하면: 초록색
     ui.statusIndicator.className = 'status-indicator safe';
     ui.statusIndicator.textContent = '✓';
     return;
   }
   
-  // 이외의 상황에서는 모두 노란색
+  // 이외의 상황에서는 모두 노란색 (감지 시작 안 했거나, 모델/카메라 작동 안 할 때)
   ui.statusIndicator.className = 'status-indicator warning';
   ui.statusIndicator.textContent = '⚠';
 }
